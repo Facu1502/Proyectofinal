@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Audiowide|Sofia|Trirong">
+    <link rel="stylesheet" href="estilos.css">
+    <title> Temperatura en Fº</title>
+    <link rel="icon" type="png" href="imagenes/termometro.png">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+
+<p class="round3">Temperatura Y Humedad</p>
+
+<ul>
+  <li><img class="Foto_head"  src="Imagenes/termometro.png" alt=""></li>
+    <li><a href="#home1">Temperatura Cº</a></li>
+    <li><a href="#home2">Temperatura Fº</a></li>
+    <li><a href="#home3">Humedad</a></li>
+    <li style="float:right" ><a class="active" target="_blank" href="https://www.google.com/search?q=clima&rlz=1C1CHBD_esAR855AR855&oq=clima&aqs=chrome..69i57j0i402l2j0i131i433i512l2j0i131i433j0i131i433i512j0i131i433j0i131i433i512j0i131i433.2973j1j15&sourceid=chrome&ie=UTF-8">Ver clima</a></li>
+  </ul>
+  
+
+
+ 
+<h1 id="home1"> Temperatura en Cº</h1>
+
+
+<br>
+<div id="gaugeTempC" class="gauge"></div>
+
+<br>
+<br>
+
+
+<h1 id="home2"> Temperatura en Fº</h1>
+<div id="gaugeTempF" class="gauge"></div>
+
+<br>
+<br>
+<br>
+
+<h1 id="home3"> Humedad</h1>
+<div id="gaugeHum" class="gauge"></div>
+
+<br>
+<br>
+<br>
+
+
+<br>
+<br>
+
+
+<br>
+<br>
+<br>
+
+
+
+<footer id="contacto"> 
+
+    Alumnos: Caruso, Grmek, Laporta y Remolif
+    <br>
+    <br>
+    Curso: Informatica "A" - 2022
+    <br>
+    <br>
+     Profesores: Alejandro Tarsitano, Analia Tropeano y Diego Martini
+    
+</footer>
+<script type="module">
+import * as GaugeChart from 'https://unpkg.com/gauge-chart@next/dist/bundle.mjs'
+
+
+let element1 = document.querySelector('#gaugeTempC');
+let element2 = document.querySelector('#gaugeTempF');
+let element3 = document.querySelector('#gaugeHum');
+
+//Configuracion de colores y delimitaciones del Gauge
+let gaugeTempCOptions = {
+  hasNeedle: true,
+  needleColor: 'black',
+  arcColors: [
+    'rgb(44, 151, 222)',
+    'rgb(239, 214, 19)',
+    'rgb(255, 84, 84)',
+     
+  ],
+  arcDelimiters: [15, 35],
+  rangeLabel: ['0', '100'],
+  needleStartValue: 0,
+};
+
+//Configuracion de colores y delimitaciones del Gauge
+let gaugeTempFOptions = {
+  hasNeedle: true,
+  needleColor: 'black',
+  arcColors: [
+     'rgb(44, 151, 222)',
+    'rgb(239, 214, 19)',
+    'rgb(255, 84, 84)',
+  ],
+  arcDelimiters: [59, 95],
+  rangeLabel: ['32', '212'],
+  needleStartValue: 0,
+};
+
+//Configuracion de colores y delimitaciones del Gauge
+let gaugeHumOptions = {
+  hasNeedle: true,
+  needleColor: 'black',
+  arcColors: [
+    'rgb(255, 84, 84)',
+    'rgb(239, 214, 19)',
+    'rgb(61, 204, 91)',
+  ],
+  arcDelimiters: [40, 60],
+  rangeLabel: ['0', '100'],
+  needleStartValue: 0,
+};
+
+const gaugeTempC = GaugeChart.gaugeChart(element1, 400, gaugeTempCOptions);
+const gaugeTempF = GaugeChart.gaugeChart(element2, 400, gaugeTempFOptions);
+const gaugeHum= GaugeChart.gaugeChart(element3, 400, gaugeHumOptions);
+
+const clientId = "mqttjs_" + Math.random().toString(16).substr(2, 8);
+const config = {
+  sense_account_id: "3dca49ca-f9fe-438e-bf18-3fa144bdef18",
+  sense_location: "casa/living",
+  sense_mqtt_host: "b8714d98763b43f8948d69926b601550.s1.eu.hivemq.cloud",
+  sense_mqtt_port: "8884",
+  sense_mqtt_username: "wTdzwuYejCcxFJkJbfUtnjrh",
+  sense_mqtt_password: "e5Jg%@I&y^xFeM*3oI7TU6AUIfY$W4JjTC74N16yc*",
+};
+const options = {
+  keepalive: 30,
+  clientId: clientId,
+  protocolId: "MQTT",
+  protocolVersion: 4,
+  clean: true,
+  reconnectPeriod: 1000,
+  connectTimeout: 30 * 1000,
+  username: config.sense_mqtt_username,
+  password: config.sense_mqtt_password,
+  will: {
+    topic: "WillMsg",
+    payload: "Connection Closed abnormally..!",
+    qos: 0,
+    retain: false,
+  },
+  rejectUnauthorized: false,
+};
+const wssUrl = `wss://${config.sense_mqtt_host}:${config.sense_mqtt_port}/mqtt`;
+const client = mqtt.connect(wssUrl, options);
+
+let temp_f = 0;
+let temp_c = 0;
+let humidity_p = 0;
+
+client.on("error", function (err) {
+  console.log(err);
+  client.end();
+});
+
+client.on("connect", function () {
+  console.log("client connected:" + clientId);
+  client.subscribe(`sense/${config.sense_account_id}/${config.sense_location}/#`, { qos: 1 });
+});
+
+client.on("message", function (topic, message, packet) {
+  const er = /^sense\/[^\/]+\/([^\\]+)\/([^\/]+)\/(\w+)/g;
+  const [match, location, device, metric] = er.exec(topic);
+
+  if (match) {
+    const value = message.toString();
+    console.log(topic + ": " + value);
+
+    switch (metric) {
+      case "temp_f":
+        temp_f = Number(value);
+        gaugeTempF.updateNeedle(temp_f);
+        break;
+      case "temp_c":
+        temp_c = Number(value);
+        gaugeTempC.updateNeedle(temp_c);
+        break;
+      case "humidity_p":
+        humidity_p = Number(value);
+        gaugeHum.updateNeedle(humidity_p);
+        break;
+    }
+  }
+});
+
+client.on("close", function () {
+  console.log(clientId + " disconnected");
+});
+</script>
+</body>
+</html>
+
